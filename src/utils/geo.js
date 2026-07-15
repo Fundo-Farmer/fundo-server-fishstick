@@ -1,6 +1,7 @@
-const { DELIVERY_ZONE, ZONE_ALLOWED_VEHICLES, DELIVERY_PRICING } = require('../config/constants');
+const { DELIVERY_ZONE, ZONE_ALLOWED_VEHICLES } = require('../config/constants');
 const User = require('../models/User');
 const Farm = require('../models/Farm');
+const { getSettings } = require('./settingsService');
 
 const toRad = (deg) => (deg * Math.PI) / 180;
 
@@ -27,15 +28,21 @@ const round2 = (n) => Math.round(n * 100) / 100;
  *
  * Falls back to a flat fee with an "unknown" zone if either point is missing
  * coordinates — e.g. a seller without a farm, or a buyer who skipped the map.
+ *
+ * Pricing itself is admin-configurable (see utils/settingsService.js) rather
+ * than fixed at deploy time — this is async purely to read that.
  */
-const quoteDelivery = (pickup, dropoff) => {
-  const { LOCAL_RADIUS_KM, LOCAL_BASE_FEE, LOCAL_FEE_PER_KM, LONG_HAUL_BASE_FEE, LONG_HAUL_FEE_PER_KM, FALLBACK_FLAT_FEE, LONG_HAUL_KM_PER_DAY } = DELIVERY_PRICING;
+const quoteDelivery = async (pickup, dropoff) => {
+  const settings = await getSettings();
+  const {
+    localRadiusKm, localBaseFee, localFeePerKm, longHaulBaseFee, longHaulFeePerKm, fallbackFlatFee, longHaulKmPerDay,
+  } = settings.deliveryPricing;
 
   if (!pickup?.lat || !pickup?.lng || !dropoff?.lat || !dropoff?.lng) {
     return {
       zone: DELIVERY_ZONE.UNKNOWN,
       distanceKm: null,
-      fee: FALLBACK_FLAT_FEE,
+      fee: fallbackFlatFee,
       allowedVehicleTypes: ZONE_ALLOWED_VEHICLES.unknown,
       estimatedDays: null,
     };
@@ -43,11 +50,11 @@ const quoteDelivery = (pickup, dropoff) => {
 
   const distanceKm = round2(haversineKm(pickup, dropoff));
 
-  if (distanceKm <= LOCAL_RADIUS_KM) {
+  if (distanceKm <= localRadiusKm) {
     return {
       zone: DELIVERY_ZONE.LOCAL,
       distanceKm,
-      fee: Math.round(LOCAL_BASE_FEE + distanceKm * LOCAL_FEE_PER_KM),
+      fee: Math.round(localBaseFee + distanceKm * localFeePerKm),
       allowedVehicleTypes: ZONE_ALLOWED_VEHICLES.local,
       estimatedDays: null, // same-day, no need to show a day estimate
     };
@@ -56,9 +63,9 @@ const quoteDelivery = (pickup, dropoff) => {
   return {
     zone: DELIVERY_ZONE.LONG_HAUL,
     distanceKm,
-    fee: Math.round(LONG_HAUL_BASE_FEE + distanceKm * LONG_HAUL_FEE_PER_KM),
+    fee: Math.round(longHaulBaseFee + distanceKm * longHaulFeePerKm),
     allowedVehicleTypes: ZONE_ALLOWED_VEHICLES.long_haul,
-    estimatedDays: Math.max(1, Math.ceil(distanceKm / LONG_HAUL_KM_PER_DAY)),
+    estimatedDays: Math.max(1, Math.ceil(distanceKm / longHaulKmPerDay)),
   };
 };
 

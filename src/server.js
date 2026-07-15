@@ -9,12 +9,24 @@ const { startAuctionScheduler } = require('./utils/auctionScheduler');
 const { startSubscriptionScheduler } = require('./utils/subscriptionScheduler');
 const { startFeaturedListingScheduler } = require('./utils/featuredListingScheduler');
 const { startPremiumScheduler } = require('./utils/premiumScheduler');
+const { seedSiteContent } = require('./utils/seedContent');
 const User = require('./models/User');
 const { ROLES } = require('./config/constants');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*', credentials: true }));
+// CLIENT_URL can be a single origin or a comma-separated list — useful once
+// there's more than one legitimate frontend (the website, plus each native
+// app wrapper, which the WebView presents as its own origin: by default
+// https://localhost on Android, capacitor://localhost on iOS). Left unset,
+// this defaults to allowing any origin, which is fine here since auth is a
+// Bearer token in the Authorization header, not a cookie — there's no CSRF
+// surface being protected by a strict origin lock in the first place.
+const allowedOrigins = (process.env.CLIENT_URL || '').split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : '*',
+  credentials: true,
+}));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
@@ -50,6 +62,13 @@ app.use('/api/preorders', require('./routes/preOrderRoutes'));
 app.use('/api/ussd', require('./routes/ussdRoutes'));
 app.use('/api/premium', require('./routes/premiumRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/research', require('./routes/researchRoutes'));
+app.use('/api/events', require('./routes/eventsRoutes'));
+app.use('/api/news', require('./routes/newsRoutes'));
+app.use('/api/content', require('./routes/siteContentRoutes'));
+app.use('/api/resources', require('./routes/resourceRoutes'));
+app.use('/api/partners', require('./routes/partnerRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
 app.use(notFound);
@@ -73,6 +92,7 @@ const bootstrapSuperAdmin = async () => {
 const start = async () => {
   await connectDB();
   await bootstrapSuperAdmin();
+  await seedSiteContent();
   startAuctionScheduler();
   startSubscriptionScheduler();
   startFeaturedListingScheduler();

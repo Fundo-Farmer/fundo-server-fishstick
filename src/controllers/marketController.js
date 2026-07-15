@@ -10,8 +10,9 @@ const ProduceRecord = require('../models/ProduceRecord');
 const { notifyWishlistersBackInStock, notifyWishlistersPriceDrop } = require('../utils/wishlistAlerts');
 const { getProvider } = require('../utils/paymentProviders');
 const { handleFeatureListingPayment } = require('../utils/featuredListingService');
+const { getSettings } = require('../utils/settingsService');
 const {
-  LISTING_STATUS, ROLES, CERTIFICATION_TAGS, FEATURED_LISTING, PAYMENT_METHOD, PAYMENT_PROVIDER, PAYMENT_STATUS,
+  LISTING_STATUS, ROLES, CERTIFICATION_TAGS, PAYMENT_METHOD, PAYMENT_PROVIDER, PAYMENT_STATUS,
 } = require('../config/constants');
 
 // Livestock/Pet/CoffeeGarden/Plantation trace to the animal or plot itself, and (for
@@ -104,9 +105,13 @@ const getProvenance = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { sourceType: item.sourceType, record, farm: item.farm } });
 });
 
-// @desc  Create a listing (any logged-in user can sell)
+// @desc  Create a listing (farm staff only — not open to plain customer accounts)
 // @route POST /api/market
 const createListing = asyncHandler(async (req, res) => {
+  if (![ROLES.FARM_ADMIN, ROLES.WORKER, ROLES.SUPER_ADMIN].includes(req.user.role)) {
+    res.status(403);
+    throw new Error('Only farm accounts can list items for sale.');
+  }
   const payload = { ...req.body, seller: req.user._id };
   if (req.user.farm) payload.farm = req.user.farm;
   if (Array.isArray(payload.qualityTags)) {
@@ -118,7 +123,7 @@ const createListing = asyncHandler(async (req, res) => {
   // Only farm staff may link a listing to one of their own farm records, and only
   // to a record that actually belongs to their farm (prevents cross-farm linking).
   if (payload.sourceType && payload.sourceId) {
-    if (![ROLES.FARM_ADMIN, ROLES.WORKER, ROLES.SUPER_ADMIN].includes(req.user.role) || !req.user.farm) {
+    if (!req.user.farm) {
       res.status(403);
       throw new Error('Only farm staff can link a listing to a farm record.');
     }
@@ -283,9 +288,10 @@ const featureListing = asyncHandler(async (req, res) => {
   item.featurePaymentRef = providerRef;
   await item.save();
 
+  const settings = await getSettings();
   res.status(201).json({
     success: true,
-    data: { providerRef, fee: FEATURED_LISTING.FEE, days: FEATURED_LISTING.DAYS, message },
+    data: { providerRef, fee: settings.featuredListing.fee, days: settings.featuredListing.days, message },
   });
 });
 

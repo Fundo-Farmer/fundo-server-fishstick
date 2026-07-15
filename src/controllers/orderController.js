@@ -35,7 +35,7 @@ const quoteDeliveryForCart = asyncHandler(async (req, res) => {
   const quotes = await Promise.all(
     [...bySeller.keys()].map(async (sellerId) => {
       const pickup = await getSellerPickupPoint(sellerId);
-      const quote = quoteDelivery(pickup, { lat, lng });
+      const quote = await quoteDelivery(pickup, { lat, lng });
       return { sellerId, ...quote };
     })
   );
@@ -124,7 +124,7 @@ const checkout = asyncHandler(async (req, res) => {
     if (fulfillmentType === FULFILLMENT_TYPE.DELIVERY) {
       // eslint-disable-next-line no-await-in-loop
       pickupPoint = await getSellerPickupPoint(sellerId);
-      quote = quoteDelivery(pickupPoint, deliveryCoordinates || {});
+      quote = await quoteDelivery(pickupPoint, deliveryCoordinates || {});
       deliveryFee = quote.fee;
     }
 

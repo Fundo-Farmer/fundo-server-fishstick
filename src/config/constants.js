@@ -4,7 +4,17 @@ module.exports = {
     FARM_ADMIN: 'farm_admin',     // Owns/manages a farm
     WORKER: 'worker',             // Works on a farm, limited access
     CUSTOMER: 'customer',         // Shop/auction buyer & seller, public-facing
+    RESEARCHER: 'researcher',     // Approved via application, posts publications to /research
+    EVENTS_ADMIN: 'events_admin', // Manages the Events section under Company
+    BLOGGER: 'blogger',           // Manages the News section
   },
+  // Roles a super_admin can hand out directly from the admin panel (as opposed
+  // to farm-scoped roles, which are created via a farm, or researcher, which
+  // is only ever created by approving a research application).
+  PLATFORM_STAFF_ROLES: ['events_admin', 'blogger'],
+  RESEARCH_APPLICATION_STATUS: { PENDING: 'pending', APPROVED: 'approved', REJECTED: 'rejected' },
+  CONTENT_STATUS: { DRAFT: 'draft', PUBLISHED: 'published' },
+  NEWS_CATEGORY: { FEATURE: 'feature', ANNOUNCEMENT: 'announcement', CASE_STUDY: 'case_study' },
   MODULES: {
     LIVESTOCK: 'livestock',
     COFFEE: 'coffee',

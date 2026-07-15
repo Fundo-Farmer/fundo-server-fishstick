@@ -8,7 +8,8 @@ const User = require('../models/User');
 const PlatformRevenue = require('../models/PlatformRevenue');
 const notify = require('./notify');
 const { getCommissionPercentForSeller } = require('./commissionRate');
-const { PLATFORM_COMMISSION_PERCENT, ORDER_PAYMENT_STATUS, PAYMENT_STATUS, WALLET_TXN_TYPE, PLATFORM_REVENUE_TYPE } = require('../config/constants');
+const { getSettings } = require('./settingsService');
+const { ORDER_PAYMENT_STATUS, PAYMENT_STATUS, WALLET_TXN_TYPE, PLATFORM_REVENUE_TYPE } = require('../config/constants');
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
@@ -121,7 +122,8 @@ const creditCourierForDelivery = async (order) => {
   const courier = await Courier.findById(delivery.courier);
   if (!courier) return;
 
-  const commissionAmount = round2(delivery.fee * (PLATFORM_COMMISSION_PERCENT / 100));
+  const settings = await getSettings();
+  const commissionAmount = round2(delivery.fee * (settings.platformCommissionPercent / 100));
   const courierAmount = round2(delivery.fee - commissionAmount);
 
   const wallet = await getOrCreateWallet(courier.user);

@@ -6,8 +6,9 @@ const notify = require('../utils/notify');
 const { applyOrderStatusChange } = require('../utils/orderFulfillment');
 const { refundDeliveryFeeToBuyer } = require('../utils/walletService');
 const { haversineKm } = require('../utils/geo');
+const { getSettings } = require('../utils/settingsService');
 const {
-  DELIVERY_STATUS, DELIVERY_FLOW, COURIER_VERIFICATION_STATUS, ORDER_STATUS, MAX_DELIVERY_REASSIGNMENTS,
+  DELIVERY_STATUS, DELIVERY_FLOW, COURIER_VERIFICATION_STATUS, ORDER_STATUS,
 } = require('../config/constants');
 
 const requireVerifiedCourier = async (userId) => {
@@ -120,7 +121,8 @@ const updateDeliveryStatus = asyncHandler(async (req, res) => {
   if (requested === DELIVERY_STATUS.FAILED) {
     const order = await Order.findById(delivery.order);
     const wasPickedUp = [DELIVERY_STATUS.PICKED_UP, DELIVERY_STATUS.IN_TRANSIT].includes(delivery.status);
-    const canReassign = !wasPickedUp && delivery.reassignmentCount < MAX_DELIVERY_REASSIGNMENTS;
+    const settings = await getSettings();
+    const canReassign = !wasPickedUp && delivery.reassignmentCount < settings.maxDeliveryReassignments;
 
     delivery.failureReason = reason || '';
     delivery.previousCouriers.push(courier._id);

@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const notify = require('../utils/notify');
-const { ROLES } = require('../config/constants');
+const { ROLES, PLATFORM_STAFF_ROLES } = require('../config/constants');
 
 // @desc  List users (super_admin: all users w/ optional ?farm=; farm_admin: own farm's staff)
 // @route GET /api/users
@@ -107,4 +107,35 @@ const deleteUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'User removed.' });
 });
 
-module.exports = { listUsers, createWorker, updateUser, deleteUser };
+// @desc  Super admin creates a platform staff account (events_admin, blogger)
+//        Researcher accounts are never created directly here — they're only
+//        ever created by approving a research application, see researchController.
+// @route POST /api/users/platform-staff
+const createPlatformStaff = asyncHandler(async (req, res) => {
+  const { name, email, password, phone, role } = req.body;
+  if (!PLATFORM_STAFF_ROLES.includes(role)) {
+    res.status(400);
+    throw new Error(`Role must be one of: ${PLATFORM_STAFF_ROLES.join(', ')}.`);
+  }
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('Name, email, and password are required.');
+  }
+  const existing = await User.findOne({ email: email.toLowerCase() });
+  if (existing) {
+    res.status(409);
+    throw new Error('A user with this email already exists.');
+  }
+  const user = await User.create({ name, email, password, phone, role });
+
+  await notify(user._id, {
+    type: 'platform_staff_added',
+    title: 'Welcome to the Fundo team',
+    body: `You've been added as ${role === ROLES.EVENTS_ADMIN ? 'an events manager' : 'a blogger'}. Log in with your email to get started.`,
+    link: role === ROLES.EVENTS_ADMIN ? '/admin/events' : '/admin/news',
+  });
+
+  res.status(201).json({ success: true, data: user.toSafeObject() });
+});
+
+module.exports = { listUsers, createWorker, createPlatformStaff, updateUser, deleteUser };

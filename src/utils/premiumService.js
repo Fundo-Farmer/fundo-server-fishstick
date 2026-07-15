@@ -1,7 +1,8 @@
 const FarmPremiumSubscription = require('../models/FarmPremiumSubscription');
 const PlatformRevenue = require('../models/PlatformRevenue');
 const notify = require('./notify');
-const { PAYMENT_STATUS, FARM_PREMIUM_STATUS, PLATFORM_REVENUE_TYPE, PREMIUM_PLAN } = require('../config/constants');
+const { PAYMENT_STATUS, FARM_PREMIUM_STATUS, PLATFORM_REVENUE_TYPE } = require('../config/constants');
+const { getSettings } = require('./settingsService');
 
 /**
  * Advances a date by one month, then keeps advancing past any additional
@@ -26,6 +27,7 @@ const nextMonthlyBillingAfter = (from) => {
 const handlePremiumPaymentCallback = async (providerRef, outcome) => {
   const sub = await FarmPremiumSubscription.findOne({ providerRef });
   if (!sub) return;
+  const settings = await getSettings();
 
   if (outcome === PAYMENT_STATUS.SUCCESSFUL) {
     sub.status = FARM_PREMIUM_STATUS.ACTIVE;
@@ -45,14 +47,14 @@ const handlePremiumPaymentCallback = async (providerRef, outcome) => {
     await notify(sub.subscribedBy, {
       type: 'premium_active',
       title: 'Premium plan active',
-      body: `Your farm is now on the Premium plan — ${PREMIUM_PLAN.COMMISSION_PERCENT}% commission on every sale.`,
+      body: `Your farm is now on the Premium plan — ${settings.premiumPlan.commissionPercent}% commission on every sale.`,
       link: '/dashboard/premium',
       sms: true,
     });
   } else {
     sub.consecutiveFailures += 1;
     sub.providerRef = null;
-    if (sub.consecutiveFailures >= PREMIUM_PLAN.MAX_CONSECUTIVE_FAILURES) {
+    if (sub.consecutiveFailures >= settings.premiumPlan.maxConsecutiveFailures) {
       sub.status = FARM_PREMIUM_STATUS.PAST_DUE;
     }
     await sub.save();

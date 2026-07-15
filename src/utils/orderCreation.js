@@ -41,7 +41,7 @@ const createSingleItemOrder = async (spec) => {
   let quote = null;
   if (spec.fulfillmentType === FULFILLMENT_TYPE.DELIVERY) {
     pickupPoint = await getSellerPickupPoint(spec.seller);
-    quote = quoteDelivery(pickupPoint, spec.deliveryCoordinates || {});
+    quote = await quoteDelivery(pickupPoint, spec.deliveryCoordinates || {});
     deliveryFee = quote.fee;
   }
 

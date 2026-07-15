@@ -3,8 +3,9 @@ const FarmPremiumSubscription = require('../models/FarmPremiumSubscription');
 const { getProvider } = require('../utils/paymentProviders');
 const { handlePremiumPaymentCallback } = require('../utils/premiumService');
 const {
-  ROLES, PAYMENT_METHOD, PAYMENT_PROVIDER, PAYMENT_STATUS, FARM_PREMIUM_STATUS, PREMIUM_PLAN,
+  ROLES, PAYMENT_METHOD, PAYMENT_PROVIDER, PAYMENT_STATUS, FARM_PREMIUM_STATUS,
 } = require('../config/constants');
+const { getSettings } = require('../utils/settingsService');
 
 const requireFarmManager = (req) => {
   if (![ROLES.FARM_ADMIN, ROLES.SUPER_ADMIN].includes(req.user.role) || !req.user.farm) {
@@ -41,6 +42,7 @@ const subscribe = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Your farm is already on the Premium plan.');
   }
+  const settings = await getSettings();
 
   const provider = paymentMethod === PAYMENT_METHOD.CARD ? PAYMENT_PROVIDER.CARD_MOCK : paymentProvider;
   const { providerRef, message } = await getProvider(provider).initiate({ phoneNumber, onResolve: handlePremiumPaymentCallback });
@@ -50,14 +52,14 @@ const subscribe = asyncHandler(async (req, res) => {
     sub.paymentProvider = provider;
     sub.phoneNumber = phoneNumber;
     sub.providerRef = providerRef;
-    sub.amount = PREMIUM_PLAN.MONTHLY_FEE;
+    sub.amount = settings.premiumPlan.monthlyFee;
     sub.nextBillingAt = new Date();
     await sub.save();
   } else {
     sub = await FarmPremiumSubscription.create({
       farm: req.user.farm,
       subscribedBy: req.user._id,
-      amount: PREMIUM_PLAN.MONTHLY_FEE,
+      amount: settings.premiumPlan.monthlyFee,
       paymentMethod,
       paymentProvider: provider,
       phoneNumber,

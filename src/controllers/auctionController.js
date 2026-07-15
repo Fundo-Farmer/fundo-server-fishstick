@@ -55,9 +55,13 @@ const getAuction = asyncHandler(async (req, res) => {
   res.json({ success: true, data: { auction, bids } });
 });
 
-// @desc  Create an auction listing
+// @desc  Create an auction listing (farm staff only — not open to plain customer accounts)
 // @route POST /api/auctions
 const createAuction = asyncHandler(async (req, res) => {
+  if (![ROLES.FARM_ADMIN, ROLES.WORKER, ROLES.SUPER_ADMIN].includes(req.user.role)) {
+    res.status(403);
+    throw new Error('Only farm accounts can start an auction.');
+  }
   const { title, description, category, images, startingPrice, bidIncrement, startTime, endTime } = req.body;
   if (!title || !startingPrice || !startTime || !endTime) {
     res.status(400);

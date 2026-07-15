@@ -2,7 +2,8 @@ const cron = require('node-cron');
 const Subscription = require('../models/Subscription');
 const { createSingleItemOrder } = require('./orderCreation');
 const notify = require('./notify');
-const { SUBSCRIPTION_FREQUENCY, SUBSCRIPTION_STATUS, MAX_SUBSCRIPTION_SKIPS } = require('../config/constants');
+const { getSettings } = require('./settingsService');
+const { SUBSCRIPTION_FREQUENCY, SUBSCRIPTION_STATUS } = require('../config/constants');
 
 const computeNextRunAt = (frequency, from = new Date()) => {
   const next = new Date(from);
@@ -36,6 +37,7 @@ const runDueSubscriptions = async () => {
     status: SUBSCRIPTION_STATUS.ACTIVE,
     nextRunAt: { $lte: new Date() },
   });
+  const settings = await getSettings();
 
   for (const subscription of due) {
     // eslint-disable-next-line no-await-in-loop
@@ -50,13 +52,13 @@ const runDueSubscriptions = async () => {
         body: result.reason,
         link: '/subscriptions',
       });
-      if (subscription.consecutiveSkips >= MAX_SUBSCRIPTION_SKIPS) {
+      if (subscription.consecutiveSkips >= settings.maxSubscriptionSkips) {
         subscription.status = SUBSCRIPTION_STATUS.PAUSED;
         // eslint-disable-next-line no-await-in-loop
         await notify(subscription.buyer, {
           type: 'subscription_paused',
           title: 'Subscription paused',
-          body: `We paused your subscription after ${MAX_SUBSCRIPTION_SKIPS} missed cycles in a row — you can resume it any time.`,
+          body: `We paused your subscription after ${settings.maxSubscriptionSkips} missed cycles in a row — you can resume it any time.`,
           link: '/subscriptions',
         });
       }
