@@ -12,5 +12,4 @@
  */
 module.exports = function clientIdPlugin(schema) {
   schema.add({ clientId: { type: String } });
-  schema.index({ farm: 1, clientId: 1 }, { unique: true, sparse: true });
 };
